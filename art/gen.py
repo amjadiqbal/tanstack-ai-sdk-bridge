@@ -132,7 +132,7 @@ def social(c):
   {chips(80, 300, ["DeepSeek", "Anthropic", "OpenAI", "Together AI", "Cerebras", "Fireworks", "Ollama"], c, size=18, h=40, gap=12, cw=10.2)}
   {chips(80, 352, ["tested provider packages · AI SDK spec v2, v3, v4"], c, size=18, h=40, gap=12, cw=10.2)}
   {code_card(80, 418, 1120, c, LONG[:3] + LONG[4:6], size=18, lh=27)}
-  <text x="1200" y="614" text-anchor="end" font-family="{SANS}" font-size="20" fill="{c["foot"]}">Free and open source · MIT · by Amjad Iqbal</text>
+  <text x="1200" y="614" text-anchor="end" font-family="{SANS}" font-size="20" fill="{c["foot"]}">Free and open source · MIT · by Amjad</text>
 </svg>
 '''
 
