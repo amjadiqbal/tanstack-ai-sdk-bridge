@@ -133,8 +133,8 @@ export class AiSdkImageAdapter<TModel extends string = string> extends BaseImage
  *
  * @example
  * import { generateImage } from '@tanstack/ai'
- * import { replicate } from '@ai-sdk/replicate'
- * await generateImage({ adapter: aiSdkImage(replicate.image('black-forest-labs/flux-schnell')), prompt: 'a lighthouse' })
+ * import { openai } from '@ai-sdk/openai'
+ * await generateImage({ threadId, adapter: aiSdkImage(openai.image('gpt-image-1')), prompt: 'a lighthouse' })
  */
 export function aiSdkImage(model: AiSdkImageModel, options?: AiSdkAdapterOptions): AiSdkImageAdapter<string> {
   return new AiSdkImageAdapter(model, options);

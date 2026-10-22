@@ -96,7 +96,7 @@ export class AiSdkSpeechAdapter<TModel extends string = string> extends BaseTTSA
  * @example
  * import { generateSpeech } from '@tanstack/ai'
  * import { openai } from '@ai-sdk/openai'
- * await generateSpeech({ adapter: aiSdkSpeech(openai.speech('gpt-4o-mini-tts')), text: 'Hello', voice: 'alloy' })
+ * await generateSpeech({ threadId, adapter: aiSdkSpeech(openai.speech('gpt-4o-mini-tts')), text: 'Hello', voice: 'alloy' })
  */
 export function aiSdkSpeech(model: AiSdkSpeechModel, options?: AiSdkAdapterOptions): AiSdkSpeechAdapter<string> {
   return new AiSdkSpeechAdapter(model, options);

@@ -129,8 +129,8 @@ def social(c):
   <text x="292" y="116" font-family="{MONO}" font-size="20" font-weight="600" fill="{c["accent"]}">{NAME}</text>
   <text x="288" y="196" font-family="{SANS}" font-size="78" font-weight="700" fill="{c["text"]}">AI SDK Bridge</text>
   <text x="292" y="244" font-family="{SANS}" font-size="28" font-weight="500" fill="{c["sub"]}">Use any Vercel AI SDK provider with TanStack AI</text>
-  {chips(80, 300, ["DeepSeek", "Cerebras", "Together", "Fireworks", "Deepgram", "Voyage"], c, size=18, h=40, gap=12, cw=10.2)}
-  {chips(80, 352, ["+ any @ai-sdk/* or community provider"], c, size=18, h=40, gap=12, cw=10.2)}
+  {chips(80, 300, ["DeepSeek", "Anthropic", "OpenAI", "Together AI", "Cerebras", "Fireworks", "Ollama"], c, size=18, h=40, gap=12, cw=10.2)}
+  {chips(80, 352, ["tested provider packages · AI SDK spec v2, v3, v4"], c, size=18, h=40, gap=12, cw=10.2)}
   {code_card(80, 418, 1120, c, LONG[:3] + LONG[4:6], size=18, lh=27)}
   <text x="1200" y="614" text-anchor="end" font-family="{SANS}" font-size="20" fill="{c["foot"]}">Free and open source · MIT · by Amjad Iqbal</text>
 </svg>

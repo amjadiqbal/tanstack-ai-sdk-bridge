@@ -482,7 +482,7 @@ export class AiSdkTextAdapter<TModel extends string = string> extends BaseTextAd
  * @example
  * import { chat } from '@tanstack/ai'
  * import { deepseek } from '@ai-sdk/deepseek'
- * chat({ adapter: aiSdkText(deepseek('deepseek-chat')), messages })
+ * chat({ adapter: aiSdkText(deepseek('deepseek-chat')), messages, threadId })
  */
 export function aiSdkText(model: AiSdkLanguageModel, options?: AiSdkAdapterOptions): AiSdkTextAdapter<string> {
   return new AiSdkTextAdapter(model, options);

@@ -109,8 +109,8 @@ export class AiSdkTranscriptionAdapter<TModel extends string = string> extends B
  *
  * @example
  * import { generateTranscription } from '@tanstack/ai'
- * import { deepgram } from '@ai-sdk/deepgram'
- * await generateTranscription({ adapter: aiSdkTranscription(deepgram.transcription('nova-3')), audio: file })
+ * import { openai } from '@ai-sdk/openai'
+ * await generateTranscription({ threadId, adapter: aiSdkTranscription(openai.transcription('whisper-1')), audio: file })
  */
 export function aiSdkTranscription(
   model: AiSdkTranscriptionModel,

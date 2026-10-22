@@ -7,7 +7,9 @@
 
 # TanStack AI SDK Bridge: use Vercel AI SDK providers with TanStack AI
 
-Use any Vercel AI SDK provider (`@ai-sdk/*` and community providers) as a [TanStack AI](https://tanstack.com/ai) adapter. DeepSeek, Cerebras, Together AI, Fireworks, DeepInfra, Deepgram, AssemblyAI, Voyage, Replicate, Luma and every other AI SDK provider work with `chat()`, `embed()`, `generateTranscription()`, `generateSpeech()`, `generateImage()` and `rerank()`, without a dedicated TanStack adapter. It is also the shortest path for moving an AI SDK app to TanStack AI: keep your provider setup and change the rest step by step.
+Use any Vercel AI SDK provider (`@ai-sdk/*` and community providers) as a [TanStack AI](https://tanstack.com/ai) adapter. The bridge reads the AI SDK provider spec (v2, v3 and v4), so a provider package works with `chat()`, `embed()`, `generateTranscription()`, `generateSpeech()`, `generateImage()` and `rerank()` without a dedicated TanStack adapter. It is also the shortest path for moving an AI SDK app to TanStack AI: keep your provider setup and change the rest step by step.
+
+Tested with: `@ai-sdk/deepseek`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/togetherai`, `@ai-sdk/cerebras`, `@ai-sdk/fireworks`, `@ai-sdk/cohere` (rerank), `ollama-ai-provider-v2` and `@ai-sdk/openai-compatible` 1.x, 2.x and 3.x (AI SDK 5, 6 and 7). See [What is tested](#what-is-tested).
 
 [![npm](https://img.shields.io/npm/v/@amjadiqbal/tanstack-ai-sdk-bridge?style=flat-square)](https://www.npmjs.com/package/@amjadiqbal/tanstack-ai-sdk-bridge)
 [![TanStack AI](https://img.shields.io/badge/TanStack%20AI-1.x-8B5CF6?style=flat-square)](https://tanstack.com/ai)
@@ -21,6 +23,7 @@ import { deepseek } from '@ai-sdk/deepseek'
 const stream = chat({
   adapter: aiSdkText(deepseek('deepseek-chat')),
   messages: [{ role: 'user', content: 'Hello!' }],
+  threadId: 'thread-1',
 })
 ```
 
@@ -93,7 +96,7 @@ const getWeather = toolDefinition({
   inputSchema: z.object({ city: z.string() }),
 }).server(async ({ city }) => ({ city, tempC: 21 }))
 
-chat({ adapter: aiSdkText(deepseek('deepseek-chat')), messages, tools: [getWeather] })
+chat({ adapter: aiSdkText(deepseek('deepseek-chat')), messages, threadId, tools: [getWeather] })
 ```
 
 ### Structured output
@@ -102,6 +105,7 @@ chat({ adapter: aiSdkText(deepseek('deepseek-chat')), messages, tools: [getWeath
 const product = await chat({
   adapter: aiSdkText(deepseek('deepseek-chat')),
   messages: [{ role: 'user', content: 'Invent a product.' }],
+  threadId: 'product-1',
   outputSchema: z.object({ name: z.string(), price: z.number() }),
   stream: false,
 })
@@ -145,9 +149,13 @@ Large inputs are split by the model's `maxEmbeddingsPerCall`. `dimensions` works
 import { generateImage, generateSpeech, generateTranscription, rerank } from '@tanstack/ai'
 import { aiSdkImage, aiSdkRerank, aiSdkSpeech, aiSdkTranscription } from '@amjadiqbal/tanstack-ai-sdk-bridge'
 
-await generateTranscription({ adapter: aiSdkTranscription(deepgram.transcription('nova-3')), audio: file })
-await generateSpeech({ adapter: aiSdkSpeech(openai.speech('gpt-4o-mini-tts')), text: 'Hello', voice: 'alloy' })
-await generateImage({ adapter: aiSdkImage(replicate.image('black-forest-labs/flux-schnell')), prompt: 'a lighthouse at dusk' })
+import { openai } from '@ai-sdk/openai'
+import { cohere } from '@ai-sdk/cohere'
+
+const threadId = 'media-1'
+await generateTranscription({ threadId, adapter: aiSdkTranscription(openai.transcription('whisper-1')), audio: file })
+await generateSpeech({ threadId, adapter: aiSdkSpeech(openai.speech('gpt-4o-mini-tts')), text: 'Hello', voice: 'alloy' })
+await generateImage({ threadId, adapter: aiSdkImage(openai.image('gpt-image-1')), prompt: 'a lighthouse at dusk' })
 await rerank({ adapter: aiSdkRerank(cohere.reranking('rerank-v3.5')), query: 'refund policy', documents })
 ```
 
@@ -183,10 +191,23 @@ A practical order: move the server route and client first with the bridge, ship,
 
 ## What is tested
 
-- Unit tests (Vitest) run every adapter against AI SDK's own `MockLanguageModelV3/V4`, `MockEmbeddingModelV4`, `MockTranscriptionModelV4`, `MockSpeechModelV4`, `MockImageModelV4` and `MockRerankingModelV4` from `ai/test`, plus hand-written spec-v2 models, through the real `chat()`, `embed()`, `generateTranscription()`, `generateSpeech()`, `generateImage()` and `rerank()` of `@tanstack/ai` 1.0.0.
-- Integration tests run real provider packages over HTTP against [aimock](https://github.com/CopilotKit/aimock), a local server that speaks the providers' wire formats: TESTED-PROVIDERS.
-- A TanStack Start app with `@tanstack/ai-react` `useChat` was used in a real browser with the packed tarball: BROWSER-TEST.
-- **Not tested against live provider APIs** (no API keys were used). Wire-level mocks cover the request and stream formats, not every model's behaviour.
+Everything below ran on 2026-10-23 with `@tanstack/ai` 1.0.0. **No live provider API was called and no API key was used**: the real provider packages talked HTTP to [aimock](https://github.com/CopilotKit/aimock) 1.46, a local server that speaks each provider's wire format. That covers the request and stream formats, not every model's behaviour.
+
+| Provider package | Spec | Chat stream | Tool loop | Structured output | Other |
+|---|---|---|---|---|---|
+| `@ai-sdk/deepseek` 3.0 | v4 | ✓ | ✓ | ✓ | reasoning ✓ |
+| `@ai-sdk/anthropic` 4.0 | v4 | ✓ | ✓ | ✓ | reasoning ✓ |
+| `@ai-sdk/openai` 4.0 (Responses and Chat Completions) | v4 | ✓ | ✓ | ✓ | embeddings, image, speech, transcription ✓ |
+| `@ai-sdk/togetherai` 3.0 | v4 | ✓ | ✓ | ✓ | |
+| `@ai-sdk/cerebras` 3.0 | v4 | ✓ | ✓ | ✓ | |
+| `@ai-sdk/fireworks` 3.0 | v4 | ✓ | ✓ | ✓ | |
+| `ollama-ai-provider-v2` 4.1 | v4 | ✓ | ✓ | ✓ | |
+| `@ai-sdk/cohere` 4.0 | v4 | | | | rerank ✓ |
+| `@ai-sdk/openai-compatible` 3.x / 2.x / 1.x (AI SDK 7 / 6 / 5) | v4 / v3 / v2 | ✓ | ✓ | ✓ | |
+
+- **Unit tests** run every adapter against AI SDK's own `MockLanguageModelV3/V4`, `MockEmbeddingModelV4`, `MockTranscriptionModelV4`, `MockSpeechModelV4`, `MockImageModelV4` and `MockRerankingModelV4` (from `ai/test`) and hand-written spec v2 models, through the real `chat()`, `embed()`, `generateTranscription()`, `generateSpeech()`, `generateImage()` and `rerank()`: streaming, tool calls with and without input deltas, `toolChoice`, reasoning levels, errors, abort, structured output, batching by `maxEmbeddingsPerCall` and `maxImagesPerCall`, and v2/v3/v4 file parts.
+- **In a real browser**: a TanStack Start 1.169 app with `@tanstack/ai-react` `useChat`, a `/api/chat` server route as in the example above, and the packed npm tarball installed. Seen working: streamed replies through `@ai-sdk/deepseek` and `@ai-sdk/anthropic`, a server tool call and its result followed by the final answer, reasoning shown before the answer, a second turn on the same thread, the Stop button ending a stream mid-reply, structured output through both providers, and embeddings through `@ai-sdk/openai`.
+- **Not tested**: live provider APIs, other AI SDK providers, Vue/Solid/Svelte clients (the bridge runs on the server, so the client framework should not matter), and Cohere chat/embeddings and Ollama embeddings (aimock's responses for those fail the providers' own validation).
 
 ## Limits
 
