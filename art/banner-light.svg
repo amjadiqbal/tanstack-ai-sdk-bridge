@@ -1,0 +1,50 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F8FAFC"/><stop offset="1" stop-color="#ECE9FB"/></linearGradient></defs>
+  <rect width="1200" height="300" fill="url(#bg)"/>
+  <g transform="translate(60,75) scale(0.29297)">
+  <defs>
+    <linearGradient id="ibg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F172A"/><stop offset="1" stop-color="#1A1840"/>
+    </linearGradient>
+    <linearGradient id="arch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C4B5FD"/><stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#ibg)"/>
+  <!-- provider plugs (left) -->
+  <g>
+    <rect x="52" y="132" width="92" height="44" rx="22" fill="#1E293B" stroke="#7DD3FC" stroke-width="5"/>
+    <rect x="52" y="214" width="92" height="44" rx="22" fill="#1E293B" stroke="#86EFAC" stroke-width="5"/>
+    <rect x="52" y="296" width="92" height="44" rx="22" fill="#1E293B" stroke="#F0ABFC" stroke-width="5"/>
+    <circle cx="80" cy="154" r="8" fill="#7DD3FC"/><rect x="96" y="148" width="32" height="12" rx="6" fill="#475569"/>
+    <circle cx="80" cy="236" r="8" fill="#86EFAC"/><rect x="96" y="230" width="32" height="12" rx="6" fill="#475569"/>
+    <circle cx="80" cy="318" r="8" fill="#F0ABFC"/><rect x="96" y="312" width="32" height="12" rx="6" fill="#475569"/>
+  </g>
+  <!-- wires converge on the bridge -->
+  <g stroke="#475569" stroke-width="6" fill="none" stroke-linecap="round">
+    <path d="M144 154 C 180 154, 182 230, 206 236"/>
+    <path d="M144 236 H 206"/>
+    <path d="M144 318 C 180 318, 182 242, 206 236"/>
+  </g>
+  <!-- bridge: deck + arch + hangers -->
+  <path d="M196 300 Q 296 120 396 300" fill="none" stroke="url(#arch)" stroke-width="18" stroke-linecap="round"/>
+  <g stroke="#A78BFA" stroke-width="6" stroke-linecap="round">
+    <path d="M246 232 V 300"/><path d="M296 212 V 300"/><path d="M346 232 V 300"/>
+  </g>
+  <rect x="180" y="296" width="232" height="20" rx="10" fill="#A78BFA"/>
+  <circle cx="206" cy="236" r="14" fill="#0F172A" stroke="#C4B5FD" stroke-width="6"/>
+  <!-- one event stream out (right) -->
+  <g fill="#C4B5FD">
+    <rect x="300" y="352" width="128" height="18" rx="9"/>
+    <rect x="300" y="384" width="96" height="18" rx="9" fill="#A78BFA"/>
+    <rect x="300" y="416" width="60" height="18" rx="9" fill="#8B5CF6"/>
+  </g>
+  <path d="M432 378 l22 15 l-22 15 z" fill="#F8FAFC"/>
+</g>
+  <text x="238" y="98" font-family="Menlo, 'SF Mono', Consolas, monospace" font-size="16" font-weight="600" fill="#7C3AED">for TanStack AI 1.x</text>
+  <text x="235" y="160" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="64" font-weight="700" fill="#0F172A">AI SDK Bridge</text>
+  <text x="238" y="198" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="22" font-weight="500" fill="#6D28D9">Any AI SDK provider as a TanStack AI adapter</text>
+  <g font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#334155"><g transform="translate(238,220)"><rect width="139" height="32" rx="16.0" fill="#FFFFFF" stroke="#CBD5E1"/><text x="69.5" y="21.1" text-anchor="middle">chat + tools</text></g><g transform="translate(387,220)"><rect width="122" height="32" rx="16.0" fill="#FFFFFF" stroke="#CBD5E1"/><text x="61.0" y="21.1" text-anchor="middle">embeddings</text></g><g transform="translate(519,220)"><rect width="294" height="32" rx="16.0" fill="#FFFFFF" stroke="#CBD5E1"/><text x="147.0" y="21.1" text-anchor="middle">speech · transcription · image</text></g></g>
+  <rect x="770" y="58" width="390" height="138" rx="14" fill="#0F172A" stroke="#C4B5FD" stroke-width="2"/><g font-family="Menlo, 'SF Mono', Consolas, monospace" font-size="12"><text x="790" y="88" xml:space="preserve"><tspan fill="#F0ABFC">import</tspan><tspan fill="#E2E8F0"> { deepseek } </tspan><tspan fill="#F0ABFC">from</tspan><tspan fill="#86EFAC"> '@ai-sdk/deepseek'</tspan></text><text x="790" y="110" xml:space="preserve"><tspan fill="#7DD3FC">chat</tspan><tspan fill="#E2E8F0">({</tspan></text><text x="790" y="132" xml:space="preserve"><tspan fill="#E2E8F0">  adapter: </tspan><tspan fill="#7DD3FC">aiSdkText</tspan><tspan fill="#E2E8F0">(</tspan><tspan fill="#7DD3FC">deepseek</tspan><tspan fill="#E2E8F0">(</tspan><tspan fill="#86EFAC">'deepseek-chat'</tspan><tspan fill="#E2E8F0">)),</tspan></text><text x="790" y="154" xml:space="preserve"><tspan fill="#E2E8F0">  messages,</tspan></text><text x="790" y="176" xml:space="preserve"><tspan fill="#E2E8F0">})</tspan></text></g>
+  <text x="1160" y="275" text-anchor="end" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="15" fill="#64748B">amjadiqbal/tanstack-ai-sdk-bridge</text>
+</svg>
