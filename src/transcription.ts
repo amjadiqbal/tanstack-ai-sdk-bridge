@@ -49,7 +49,9 @@ async function toAudio(
 
 /**
  * TanStack AI transcription adapter around an AI SDK transcription model.
- * `language` and `prompt` have no AI SDK equivalent: pass them in `modelOptions.providerOptions`.
+ * `language`, `prompt` and `responseFormat` have no AI SDK equivalent and are not sent: pass the provider's own
+ * options in `modelOptions.providerOptions`. The result always has `text`, plus `segments`, `language` and `duration`
+ * when the provider returns them. An `http(s)` URL as `audio` is downloaded with the global `fetch`, not the provider's.
  */
 export class AiSdkTranscriptionAdapter<TModel extends string = string> extends BaseTranscriptionAdapter<
   TModel,

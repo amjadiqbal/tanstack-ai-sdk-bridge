@@ -6,6 +6,7 @@ import {
   type AiSdkAdapterOptions,
   type AiSdkCallOptions,
   adapterName,
+  base64ToBytes,
   bytesToBase64,
   callExtras,
   randomId,
@@ -35,7 +36,51 @@ const CONTENT_TYPES: Record<string, string> = {
   pcm: 'audio/pcm',
 };
 
-/** TanStack AI text-to-speech adapter around an AI SDK speech model. */
+const FORMATS_BY_TYPE: Record<string, string> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp3': 'mp3',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/opus': 'opus',
+  'audio/ogg': 'opus',
+  'audio/aac': 'aac',
+  'audio/flac': 'flac',
+  'audio/x-flac': 'flac',
+  'audio/pcm': 'pcm',
+  'audio/l16': 'pcm',
+};
+
+function headerValue(headers: unknown, name: string): string | undefined {
+  if (!headers || typeof headers !== 'object') return undefined;
+  for (const [key, value] of Object.entries(headers as Record<string, unknown>)) {
+    if (key.toLowerCase() === name && typeof value === 'string') return value;
+  }
+  return undefined;
+}
+
+function formatFromContentType(type: string | undefined): string | undefined {
+  return type ? FORMATS_BY_TYPE[type.toLowerCase()] : undefined;
+}
+
+/** Recognises MP3, WAV, Ogg/Opus, FLAC and ADTS AAC from their first bytes. */
+export function formatFromBytes(bytes: Uint8Array): string | undefined {
+  const ascii = (start: number, text: string) => [...text].every((char, i) => bytes[start + i] === char.charCodeAt(0));
+  if (ascii(0, 'RIFF') && ascii(8, 'WAVE')) return 'wav';
+  if (ascii(0, 'OggS')) return 'opus';
+  if (ascii(0, 'fLaC')) return 'flac';
+  if (ascii(0, 'ID3')) return 'mp3';
+  const b0 = bytes[0] ?? 0;
+  const b1 = bytes[1] ?? 0;
+  if (b0 === 0xff && (b1 & 0xe0) === 0xe0) return (b1 & 0x06) === 0 ? 'aac' : 'mp3';
+  return undefined;
+}
+
+/**
+ * TanStack AI text-to-speech adapter around an AI SDK speech model.
+ * `format` in the result is what the provider returned (content-type header or audio bytes),
+ * falling back to the requested format, else `unknown`.
+ */
 export class AiSdkSpeechAdapter<TModel extends string = string> extends BaseTTSAdapter<
   TModel,
   AiSdkSpeechModelOptions
@@ -70,15 +115,19 @@ export class AiSdkSpeechAdapter<TModel extends string = string> extends BaseTTSA
         ...(modelOptions?.language !== undefined && { language: modelOptions.language }),
         ...callExtras(modelOptions, abortSignal),
       });
+      const bytes = typeof result.audio === 'string' ? base64ToBytes(result.audio) : result.audio;
       const audio = typeof result.audio === 'string' ? result.audio : bytesToBase64(result.audio);
-      const outputFormat = format ?? 'mp3';
-      const headerType = (result.response?.headers as Record<string, string> | undefined)?.['content-type'];
+      const headerType = headerValue(result.response?.headers, 'content-type')?.split(';')[0]?.trim();
+      // Report what the provider returned: its content-type header, else the audio's magic bytes,
+      // else the format that was asked for.
+      const detected = formatFromContentType(headerType) ?? formatFromBytes(bytes);
+      const outputFormat = detected ?? format ?? 'unknown';
       return {
         id: randomId(this.name),
         model: result.response?.modelId ?? model,
         audio,
         format: outputFormat,
-        contentType: headerType?.split(';')[0] || CONTENT_TYPES[outputFormat] || 'application/octet-stream',
+        contentType: headerType || CONTENT_TYPES[outputFormat] || 'application/octet-stream',
       };
     } catch (error: unknown) {
       logger.errors(`${this.name}.generateSpeech fatal`, {

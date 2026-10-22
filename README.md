@@ -27,10 +27,10 @@ const stream = chat({
 })
 ```
 
-- **Text**: streaming chat, tool calls (TanStack's agent loop runs your tools), reasoning, structured output (`outputSchema`), token usage, abort.
+- **Text**: streaming chat, tool calls (TanStack's agent loop runs your tools), reasoning, structured output (`outputSchema`), token usage, abort (see [Abort](#abort)).
 - **Embeddings, transcription, speech, image generation, rerank**: one adapter function each.
 - **AI SDK 5, 6 and 7 providers**: provider spec v2, v3 and v4 are all read.
-- **No extra runtime code from AI SDK**: only the provider package you already use, plus `@ai-sdk/provider` types. No `ai` package needed.
+- **No AI SDK runtime code**: the built package imports only `@tanstack/ai`. `@ai-sdk/provider` is a dependency because the published type declarations use its model types; nothing from it runs. No `ai` package needed.
 
 ## Install
 
@@ -112,7 +112,13 @@ const product = await chat({
 // product: { name: string; price: number }
 ```
 
-The bridge asks the model for JSON with the schema (AI SDK `responseFormat: { type: 'json', schema }`) and TanStack AI validates the result. A JSON answer wrapped in a Markdown code fence is also accepted.
+What the bridge does for `outputSchema`, exactly:
+
+- After the agent loop, TanStack AI calls the adapter's `structuredOutput()`. The bridge makes **one non-streaming** `doGenerate` call with the conversation, **without tools**, and `responseFormat: { type: 'json', schema }` (the JSON Schema TanStack AI made from your schema). Whether the provider enforces the schema depends on the provider.
+- It joins the text parts of the answer and parses them as JSON. An answer wrapped in a Markdown code fence is accepted.
+- It throws `Structured output generation failed: ...` (original error as `cause`) when the answer was cut off at the token limit, when the text is not JSON, or when the provider call fails.
+- The bridge does not check the data against the schema; `chat()` does that with your schema after the bridge returns.
+- `structuredOutputStream` and combined tools-plus-schema in one request are not implemented, so TanStack AI uses its non-streaming path.
 
 ### Reasoning
 
@@ -141,7 +147,7 @@ const { embeddings } = await embed({
 })
 ```
 
-Large inputs are split by the model's `maxEmbeddingsPerCall`. `dimensions` works with AI SDK 7 models; older ones take it through `modelOptions.providerOptions`.
+Large inputs are split by the model's `maxEmbeddingsPerCall`. `dimensions` is sent to AI SDK 7 (spec v4) embedding models. On spec v2/v3 models the bridge throws if `dimensions` is set, because their spec has no such field: leave it unset and pass the provider's own option instead, for example `modelOptions: { providerOptions: { openai: { dimensions: 512 } } }`.
 
 ### Transcription, speech, image, rerank
 
@@ -168,7 +174,23 @@ await rerank({ adapter: aiSdkRerank(cohere.reranking('rerank-v3.5')), query: 're
 | `generateImage()` | `aiSdkImage(model)` | `ImageModel` | v2, v3, v4 |
 | `rerank()` | `aiSdkRerank(model)` | `RerankingModel` | v3, v4 |
 
+Activity-specific `modelOptions`, on top of `providerOptions` and `headers`:
+
+| Adapter | `modelOptions` | Notes |
+|---|---|---|
+| `aiSdkTranscription` | `mediaType` | Media type of the audio when it can't be read from a `Blob`/`File` type or a data URL. Default `audio/mpeg`. `language`, `prompt` and `responseFormat` are not sent (the AI SDK spec has no such fields); the result has `text`, plus `segments`, `language` and `duration` when the provider returns them. An `http(s)` URL as `audio` is downloaded with the global `fetch`, not the provider's `fetch`. |
+| `aiSdkSpeech` | `instructions`, `language` | Sent as the AI SDK `instructions` and `language` call options. The result's `format` and `contentType` come from the provider's `content-type` header, else from the audio bytes (MP3, WAV, Ogg, FLAC, AAC), else the `format` you asked for, else `unknown`. |
+| `aiSdkImage` | `aspectRatio`, `seed`, `mask` | Sent as the AI SDK call options. `mask` is an AI SDK image file (`{ type: 'file', mediaType, data }` or `{ type: 'url', url }`). Image parts in the prompt become input `files`. Input images and masks need a spec v3/v4 model; v2 models throw. When the model does not report `maxImagesPerCall`, one image is requested per call (the AI SDK's own default) until `numberOfImages` is reached. |
+
 Every function takes an optional second argument `{ name }`, the adapter name TanStack AI shows in devtools and usage. It defaults to the provider id before the first dot (`deepseek.chat` becomes `deepseek`).
+
+### Abort
+
+| Activity | How to cancel | Passed to the AI SDK model |
+|---|---|---|
+| `chat()` | `abortController` (or the `request` signal) | yes: `abortSignal`, and the stream is cancelled |
+| `generateTranscription()`, `generateSpeech()`, `generateImage()`, `rerank()` | `abortSignal` | yes |
+| `embed()` | none: TanStack AI's `embed()` takes no signal | no |
 
 ## Migrating from the Vercel AI SDK
 
@@ -215,7 +237,9 @@ Everything below ran on 2026-10-23 with `@tanstack/ai` 1.0.0. **No live provider
 - **Reasoning signatures** are not sent back, so providers that need signed thinking blocks in later turns (Anthropic extended thinking with tools) receive the reasoning as plain text or drop it.
 - `chat({ wrapFetch })` is not applied; pass a custom `fetch` to the provider factory (`createDeepSeek({ fetch })`).
 - Provider file handles (`{ type: 'file' }` sources) are rejected; send images and documents as data or URLs.
-- Transcription `language` and `prompt` have no AI SDK equivalent; pass them in `modelOptions.providerOptions`.
+- Transcription `language`, `prompt` and `responseFormat` are not sent; see the options table.
+- Embeddings cannot be aborted (TanStack AI's `embed()` has no signal).
+- **TanStack AI internals:** like TanStack's own adapters, the bridge imports helpers (`transformMessagesForReplay`, `tanstackMetadata`, `toRunErrorPayload`) from `@tanstack/ai/adapter-internals`, the subpath TanStack's [community adapter guide](https://tanstack.com/ai/latest/docs/community-adapters/guide) points adapters to. It is not covered by the same stability promise as the main entry. Tested with `@tanstack/ai` 1.0.0; the peer range is `^1.0.0`. If a 1.x release breaks it, please open an issue.
 - AI SDK reranking models report no token usage, so `rerank()` usage is zero.
 - Video, audio generation and realtime models are not bridged yet.
 

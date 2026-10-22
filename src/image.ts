@@ -21,7 +21,10 @@ export type AiSdkImageModel = ImageModelV2 | ImageModelV3 | ImageModelV4;
 export interface AiSdkImageModelOptions extends AiSdkCallOptions {
   /** Aspect ratio such as `16:9`, for models that take one instead of a size. */
   aspectRatio?: `${number}:${number}`;
+  /** Seed, for models that take one. */
   seed?: number;
+  /** Mask for inpainting (AI SDK v3/v4 image models that support masks), as an AI SDK image file. */
+  mask?: ImageModelV4File;
 }
 
 const SPECS: ReadonlyArray<SpecVersion> = ['v2', 'v3', 'v4'];
@@ -63,6 +66,7 @@ export class AiSdkImageAdapter<TModel extends string = string> extends BaseImage
       );
     }
     if (files.length > 0 && this.specificationVersion === 'v2') {
+      // AI SDK v2 image models have no file inputs at all.
       throw new Error(`${this.name}: image inputs need an AI SDK v3 or v4 image model`);
     }
     return { text: texts.join('\n'), files };
@@ -73,7 +77,11 @@ export class AiSdkImageAdapter<TModel extends string = string> extends BaseImage
     const wanted = options.numberOfImages ?? 1;
     try {
       const { text, files } = this.promptOf(options.prompt);
+      if (modelOptions?.mask && this.specificationVersion === 'v2') {
+        throw new Error(`${this.name}: a mask needs an AI SDK v3 or v4 image model`);
+      }
       const maxSetting = this.imageModel.maxImagesPerCall;
+      // Same default as the AI SDK's own generateImage(): one image per call when the model does not say.
       const max =
         (typeof maxSetting === 'function' ? await maxSetting({ modelId: this.imageModel.modelId }) : maxSetting) ?? 1;
       logger.request(`activity=image provider=${this.name} model=${model} n=${wanted} size=${size ?? 'default'}`, {
@@ -93,7 +101,7 @@ export class AiSdkImageAdapter<TModel extends string = string> extends BaseImage
           aspectRatio: modelOptions?.aspectRatio,
           seed: modelOptions?.seed,
           files: files.length > 0 ? files : undefined,
-          mask: undefined,
+          mask: modelOptions?.mask,
           providerOptions: (modelOptions?.providerOptions ?? {}) as ImageModelV4['doGenerate'] extends (
             o: infer O,
           ) => unknown

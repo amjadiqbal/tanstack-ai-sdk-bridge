@@ -144,6 +144,53 @@ describe('aiSdkSpeech', () => {
   });
 });
 
+describe('aiSdkSpeech: reported format', () => {
+  const speak = (audio: Uint8Array | string, headers?: Record<string, string>) =>
+    new MockSpeechModelV4({
+      doGenerate: async () => ({ audio, warnings: [], response: { ...response('tts'), headers } }),
+    });
+
+  it('reads the format from the content-type header when none was requested', async () => {
+    const result = await generateSpeech({
+      threadId: 't',
+      adapter: aiSdkSpeech(speak(new Uint8Array([1, 2]), { 'Content-Type': 'audio/flac' })),
+      text: 'hi',
+    });
+    expect(result.format).toBe('flac');
+    expect(result.contentType).toBe('audio/flac');
+  });
+
+  it('reads the format from the audio bytes when there is no header', async () => {
+    const wav = new Uint8Array(
+      [...'RIFF']
+        .map((c) => c.charCodeAt(0))
+        .concat(
+          [0, 0, 0, 0],
+          [...'WAVE'].map((c) => c.charCodeAt(0)),
+        ),
+    );
+    const result = await generateSpeech({ threadId: 't', adapter: aiSdkSpeech(speak(wav)), text: 'hi' });
+    expect(result.format).toBe('wav');
+    expect(result.contentType).toBe('audio/wav');
+    const mp3 = await generateSpeech({
+      threadId: 't',
+      adapter: aiSdkSpeech(speak(new Uint8Array([0x49, 0x44, 0x33, 4]))),
+      text: 'hi',
+    });
+    expect(mp3.format).toBe('mp3');
+  });
+
+  it('says unknown instead of guessing mp3', async () => {
+    const result = await generateSpeech({
+      threadId: 't',
+      adapter: aiSdkSpeech(speak(new Uint8Array([1, 2, 3]))),
+      text: 'hi',
+    });
+    expect(result.format).toBe('unknown');
+    expect(result.contentType).toBe('application/octet-stream');
+  });
+});
+
 describe('aiSdkImage', () => {
   it('generates the requested number of images across calls of maxImagesPerCall', async () => {
     const calls: { n: number; prompt: string | undefined; size: string | undefined }[] = [];
@@ -170,6 +217,20 @@ describe('aiSdkImage', () => {
     expect(calls.map((c) => c.n)).toEqual([2, 1]);
     expect(calls[0]).toMatchObject({ prompt: 'a lighthouse', size: '512x512' });
     expect(result.images).toEqual([{ b64Json: 'img1-0' }, { b64Json: 'img1-1' }, { b64Json: 'img2-0' }]);
+  });
+
+  it('sends a mask from modelOptions', async () => {
+    let mask: unknown;
+    const model = new MockImageModelV4({
+      maxImagesPerCall: 1,
+      doGenerate: async (options) => {
+        mask = options.mask;
+        return { images: ['x'], warnings: [], response: response('m') };
+      },
+    });
+    const file = { type: 'file' as const, mediaType: 'image/png', data: 'bWFzaw==' };
+    await generateImage({ threadId: 't', adapter: aiSdkImage(model), prompt: 'fill', modelOptions: { mask: file } });
+    expect(mask).toEqual(file);
   });
 });
 
@@ -199,5 +260,74 @@ describe('aiSdkRerank', () => {
     expect(JSON.stringify(result)).toContain('0.97');
     const ranking = result as unknown as { results?: { index: number }[]; ranking?: { index: number }[] };
     expect((ranking.results ?? ranking.ranking)?.[0]?.index).toBe(1);
+  });
+});
+
+describe('abort signals', () => {
+  it('pass the activity abortSignal to transcription, speech, image and rerank models', async () => {
+    const seen: Record<string, AbortSignal | undefined> = {};
+    const controller = new AbortController();
+    const abortSignal = controller.signal;
+    await generateTranscription({
+      threadId: 't',
+      adapter: aiSdkTranscription(
+        new MockTranscriptionModelV4({
+          doGenerate: async (o) => {
+            seen.transcription = o.abortSignal;
+            return {
+              text: '',
+              segments: [],
+              language: undefined,
+              durationInSeconds: undefined,
+              warnings: [],
+              response: response('m'),
+            };
+          },
+        }),
+      ),
+      audio: new Blob([new Uint8Array([1])]),
+      abortSignal,
+    });
+    await generateSpeech({
+      threadId: 't',
+      adapter: aiSdkSpeech(
+        new MockSpeechModelV4({
+          doGenerate: async (o) => {
+            seen.speech = o.abortSignal;
+            return { audio: new Uint8Array([1]), warnings: [], response: response('m') };
+          },
+        }),
+      ),
+      text: 'hi',
+      abortSignal,
+    });
+    await generateImage({
+      threadId: 't',
+      adapter: aiSdkImage(
+        new MockImageModelV4({
+          maxImagesPerCall: 1,
+          doGenerate: async (o) => {
+            seen.image = o.abortSignal;
+            return { images: ['x'], warnings: [], response: response('m') };
+          },
+        }),
+      ),
+      prompt: 'x',
+      abortSignal,
+    });
+    await rerank({
+      adapter: aiSdkRerank(
+        new MockRerankingModelV4({
+          doRerank: async (o) => {
+            seen.rerank = o.abortSignal;
+            return { ranking: [{ index: 0, relevanceScore: 1 }] };
+          },
+        }),
+      ),
+      query: 'q',
+      documents: ['a'],
+      abortSignal,
+    });
+    for (const kind of ['transcription', 'speech', 'image', 'rerank']) expect(seen[kind], kind).toBe(abortSignal);
   });
 });

@@ -367,6 +367,27 @@ describe('aiSdkText: structured output', () => {
     expect(JSON.stringify(call.responseFormat)).toContain('"price"');
   });
 
+  it('leaves schema validation to chat(), which rejects data that does not match', async () => {
+    const model = new MockLanguageModelV4({
+      doGenerate: {
+        content: [{ type: 'text', text: '{"name":42}' }],
+        finishReason: { unified: 'stop', raw: 'stop' },
+        usage: usageV4(1, 1),
+        warnings: [],
+      },
+    });
+    await expect(
+      chat({
+        threadId: 't',
+        adapter: aiSdkText(model),
+        messages: user('x'),
+        outputSchema: z.object({ name: z.string() }),
+        stream: false,
+      }),
+    ).rejects.toThrow();
+    expect(model.doGenerateCalls[0]?.tools).toBeUndefined();
+  });
+
   it('reports invalid JSON', async () => {
     const model = new MockLanguageModelV4({
       doGenerate: {
