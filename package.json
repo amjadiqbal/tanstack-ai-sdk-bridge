@@ -1,7 +1,7 @@
 {
   "name": "@amjadiqbal/tanstack-ai-sdk-bridge",
-  "version": "0.1.1",
-  "description": "Use any Vercel AI SDK provider (@ai-sdk/* and community providers) as a TanStack AI adapter: streaming chat with tools, reasoning and structured output, plus embeddings, transcription, speech, image generation and rerank. Supports AI SDK provider spec v2, v3 and v4.",
+  "version": "0.1.2",
+  "description": "Third-party migration stepping stone: run Vercel AI SDK provider models (@ai-sdk/* and community providers) inside TanStack AI while you move to native TanStack AI adapters. Chat with tools, reasoning and structured output, plus embeddings, transcription, speech, image and rerank. Not affiliated with TanStack.",
   "keywords": [
     "tanstack",
     "tanstack-ai",
@@ -57,7 +57,7 @@
     "@ai-sdk/provider": "^4.0.32"
   },
   "peerDependencies": {
-    "@tanstack/ai": "^1.0.0"
+    "@tanstack/ai": ">=1.0.0 <1.1.0"
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "4.0.86",

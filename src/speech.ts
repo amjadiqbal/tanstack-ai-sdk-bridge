@@ -29,7 +29,8 @@ const SPECS: ReadonlyArray<SpecVersion> = ['v2', 'v3', 'v4'];
 
 const CONTENT_TYPES: Record<string, string> = {
   mp3: 'audio/mpeg',
-  opus: 'audio/opus',
+  opus: 'audio/ogg',
+  ogg: 'audio/ogg',
   aac: 'audio/aac',
   flac: 'audio/flac',
   wav: 'audio/wav',
@@ -43,7 +44,7 @@ const FORMATS_BY_TYPE: Record<string, string> = {
   'audio/x-wav': 'wav',
   'audio/wave': 'wav',
   'audio/opus': 'opus',
-  'audio/ogg': 'opus',
+  'audio/ogg': 'ogg',
   'audio/aac': 'aac',
   'audio/flac': 'flac',
   'audio/x-flac': 'flac',
@@ -63,11 +64,13 @@ function formatFromContentType(type: string | undefined): string | undefined {
   return type ? FORMATS_BY_TYPE[type.toLowerCase()] : undefined;
 }
 
-/** Recognises MP3, WAV, Ogg/Opus, FLAC and ADTS AAC from their first bytes. */
+/** Recognises MP3, WAV, Ogg (Opus or other), FLAC and ADTS AAC from their first bytes. */
 export function formatFromBytes(bytes: Uint8Array): string | undefined {
   const ascii = (start: number, text: string) => [...text].every((char, i) => bytes[start + i] === char.charCodeAt(0));
   if (ascii(0, 'RIFF') && ascii(8, 'WAVE')) return 'wav';
-  if (ascii(0, 'OggS')) return 'opus';
+  // An Ogg stream whose first packet (after the 27-byte page header and its segment table) is `OpusHead` is Opus;
+  // other Ogg (e.g. Vorbis) is reported as `ogg`.
+  if (ascii(0, 'OggS')) return ascii(27 + (bytes[26] ?? 0), 'OpusHead') ? 'opus' : 'ogg';
   if (ascii(0, 'fLaC')) return 'flac';
   if (ascii(0, 'ID3')) return 'mp3';
   const b0 = bytes[0] ?? 0;
@@ -79,7 +82,8 @@ export function formatFromBytes(bytes: Uint8Array): string | undefined {
 /**
  * TanStack AI text-to-speech adapter around an AI SDK speech model.
  * `format` in the result is what the provider returned (content-type header or audio bytes),
- * falling back to the requested format, else `unknown`.
+ * falling back to the requested format, else `unknown`. `contentType` is the header value, else the media type of the
+ * format, else `application/octet-stream`.
  */
 export class AiSdkSpeechAdapter<TModel extends string = string> extends BaseTTSAdapter<
   TModel,

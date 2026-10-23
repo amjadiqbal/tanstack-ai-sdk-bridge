@@ -5,14 +5,35 @@
   </picture>
 </p>
 
-# TanStack AI SDK Bridge: use Vercel AI SDK providers with TanStack AI
+# TanStack AI SDK Bridge: a migration stepping stone from Vercel AI SDK providers to TanStack AI
 
-Use any Vercel AI SDK provider (`@ai-sdk/*` and community providers) as a [TanStack AI](https://tanstack.com/ai) adapter. The bridge reads the AI SDK provider spec (v2, v3 and v4), so a provider package works with `chat()`, `embed()`, `generateTranscription()`, `generateSpeech()`, `generateImage()` and `rerank()` without a dedicated TanStack adapter. It is also the shortest path for moving an AI SDK app to TanStack AI: keep your provider setup and change the rest step by step.
+Run your existing Vercel AI SDK provider setup (`@ai-sdk/*` and community providers) inside [TanStack AI](https://tanstack.com/ai) **while you move to native TanStack AI adapters**. Wrap a model, e.g. `aiSdkText(deepseek('deepseek-chat'))`, and `chat()`, `embed()`, `generateTranscription()`, `generateSpeech()`, `generateImage()` and `rerank()` accept it. You can move your server routes and client to TanStack AI first, ship, and then swap each provider for its native adapter.
 
-Tested with: `@ai-sdk/deepseek`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/togetherai`, `@ai-sdk/cerebras`, `@ai-sdk/fireworks`, `@ai-sdk/cohere` (rerank), `ollama-ai-provider-v2` and `@ai-sdk/openai-compatible` 1.x, 2.x and 3.x (AI SDK 5, 6 and 7). See [What is tested](#what-is-tested).
+**Use native TanStack AI adapters wherever one exists.** Start from TanStack AI's [migration guide from the Vercel AI SDK](https://tanstack.com/ai/latest/docs/migration/migration-from-vercel-ai) and its [adapter list](https://tanstack.com/ai/latest/docs/adapters/openai). For the providers this package was tested with:
+
+| AI SDK provider | Native TanStack AI adapter |
+|---|---|
+| `@ai-sdk/openai` | `openaiText`, `openaiEmbedding`, `openaiImage`, `openaiSpeech`, `openaiTranscription` from `@tanstack/ai-openai` |
+| `@ai-sdk/anthropic` | `anthropicText` from `@tanstack/ai-anthropic` |
+| `ollama-ai-provider-v2` | `ollamaText`, `ollamaEmbedding` from `@tanstack/ai-ollama` |
+| `@ai-sdk/cohere` | `cohereRerank`, `cohereEmbedding` from `@tanstack/ai-cohere` |
+| `@ai-sdk/deepseek`, `@ai-sdk/togetherai`, `@ai-sdk/cerebras`, `@ai-sdk/fireworks`, `@ai-sdk/openai-compatible` | `openaiCompatible` from `@tanstack/ai-openai/compatible` ([docs](https://tanstack.com/ai/latest/docs/adapters/openai-compatible)) |
+
+> [!IMPORTANT]
+> **Third-party package.** It is not made, listed or endorsed by TanStack; TanStack AI's maintainers [declined to list it](https://github.com/TanStack/ai/pull/1884) in their docs. Problems with a bridged provider are this package's problems, not TanStack AI's: please [open an issue here](https://github.com/amjadiqbal/tanstack-ai-sdk-bridge/issues).
+
+### What you lose versus a native adapter
+
+- **No per-model typing**: `modelOptions` and input modalities are not typed per model; you get one generic set of AI SDK call settings.
+- **Reasoning only on AI SDK 7 providers** (spec v4). On AI SDK 5 and 6 providers `chat({ reasoning })` is not sent; reasoning output still streams if the provider returns it.
+- **No provider-executed tools** (a provider's own web search, code execution and the like); only your function tools.
+- **No reasoning signatures across turns**: signed or redacted thinking is not sent back, so providers that need it in later turns get plain text or nothing.
+- **No `wrapFetch`**: TanStack AI's fetch middleware stack does not apply; pass a custom `fetch` to the provider factory instead.
+- **No streaming structured output**: `outputSchema` runs one non-streaming call after the agent loop.
+- **Depends on TanStack AI internals**: it imports `@tanstack/ai/adapter-internals`, which has **no stability promise**. The peer range is pinned to the versions tested (`@tanstack/ai >=1.0.0 <1.1.0`), so an untested TanStack AI version is flagged at install time (npm reports a peer conflict, pnpm a warning) instead of surfacing as a run-time error. A release that widens the range follows after testing.
 
 [![npm](https://img.shields.io/npm/v/@amjadiqbal/tanstack-ai-sdk-bridge?style=flat-square)](https://www.npmjs.com/package/@amjadiqbal/tanstack-ai-sdk-bridge)
-[![TanStack AI](https://img.shields.io/badge/TanStack%20AI-1.x-8B5CF6?style=flat-square)](https://tanstack.com/ai)
+[![TanStack AI](https://img.shields.io/badge/TanStack%20AI-1.0.x-8B5CF6?style=flat-square)](https://tanstack.com/ai)
 [![License](https://img.shields.io/npm/l/@amjadiqbal/tanstack-ai-sdk-bridge?style=flat-square)](LICENSE.md)
 
 ```ts
@@ -20,11 +41,13 @@ import { chat } from '@tanstack/ai'
 import { aiSdkText } from '@amjadiqbal/tanstack-ai-sdk-bridge'
 import { deepseek } from '@ai-sdk/deepseek'
 
+// Step 1 of a migration: keep the AI SDK provider, move to TanStack AI's chat().
 const stream = chat({
   adapter: aiSdkText(deepseek('deepseek-chat')),
   messages: [{ role: 'user', content: 'Hello!' }],
   threadId: 'thread-1',
 })
+// Step 2: swap to the native adapter (openaiCompatible from @tanstack/ai-openai/compatible for DeepSeek).
 ```
 
 - **Text**: streaming chat, tool calls (TanStack's agent loop runs your tools), reasoning, structured output (`outputSchema`), token usage, abort (see [Abort](#abort)).
@@ -32,13 +55,15 @@ const stream = chat({
 - **AI SDK 5, 6 and 7 providers**: provider spec v2, v3 and v4 are all read.
 - **No AI SDK runtime code**: the built package imports only `@tanstack/ai`. `@ai-sdk/provider` is a dependency because the published type declarations use its model types; nothing from it runs. No `ai` package needed.
 
+Tested with (local wire-level mock, no live APIs): `@ai-sdk/deepseek`, `@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/togetherai`, `@ai-sdk/cerebras`, `@ai-sdk/fireworks`, `@ai-sdk/cohere` (rerank), `ollama-ai-provider-v2` and `@ai-sdk/openai-compatible` 1.x, 2.x and 3.x (AI SDK 5, 6 and 7). See [What is tested](#what-is-tested).
+
 ## Install
 
 ```bash
-npm i @amjadiqbal/tanstack-ai-sdk-bridge @tanstack/ai
+npm i @amjadiqbal/tanstack-ai-sdk-bridge @tanstack/ai@1.0
 ```
 
-Then the AI SDK provider you want, for example `npm i @ai-sdk/deepseek`. Requires `@tanstack/ai` 1.x and Node 20+.
+Then the AI SDK provider you already use, for example `npm i @ai-sdk/deepseek`. Requires `@tanstack/ai` 1.0.x (tested: 1.0.0) and Node 20+.
 
 ## Usage
 
@@ -179,7 +204,7 @@ Activity-specific `modelOptions`, on top of `providerOptions` and `headers`:
 | Adapter | `modelOptions` | Notes |
 |---|---|---|
 | `aiSdkTranscription` | `mediaType` | Media type of the audio when it can't be read from a `Blob`/`File` type or a data URL. Default `audio/mpeg`. `language`, `prompt` and `responseFormat` are not sent (the AI SDK spec has no such fields); the result has `text`, plus `segments`, `language` and `duration` when the provider returns them. An `http(s)` URL as `audio` is downloaded with the global `fetch`, not the provider's `fetch`. |
-| `aiSdkSpeech` | `instructions`, `language` | Sent as the AI SDK `instructions` and `language` call options. The result's `format` and `contentType` come from the provider's `content-type` header, else from the audio bytes (MP3, WAV, Ogg, FLAC, AAC), else the `format` you asked for, else `unknown`. |
+| `aiSdkSpeech` | `instructions`, `language` | Sent as the AI SDK `instructions` and `language` call options. The result's `format` and `contentType` come from the provider's `content-type` header, else from the audio bytes (MP3, WAV, FLAC, AAC, and Ogg: `opus` when the Ogg stream is Opus, else `ogg`), else the `format` you asked for, else `unknown`. When the format is `unknown` (or a format with no known media type), `contentType` is `application/octet-stream`. |
 | `aiSdkImage` | `aspectRatio`, `seed`, `mask` | Sent as the AI SDK call options. `mask` is an AI SDK image file (`{ type: 'file', mediaType, data }` or `{ type: 'url', url }`). Image parts in the prompt become input `files`. Input images and masks need a spec v3/v4 model; v2 models throw. When the model does not report `maxImagesPerCall`, one image is requested per call (the AI SDK's own default) until `numberOfImages` is reached. |
 
 Every function takes an optional second argument `{ name }`, the adapter name TanStack AI shows in devtools and usage. It defaults to the provider id before the first dot (`deepseek.chat` becomes `deepseek`).
@@ -194,7 +219,7 @@ Every function takes an optional second argument `{ name }`, the adapter name Ta
 
 ## Migrating from the Vercel AI SDK
 
-TanStack's own [migration guide](https://tanstack.com/ai/latest/docs/migration/migration-from-vercel-ai) swaps your provider packages for TanStack adapters. With the bridge you can skip that step, and keep providers that have no TanStack adapter:
+Follow TanStack's own [migration guide](https://tanstack.com/ai/latest/docs/migration/migration-from-vercel-ai); it ends with your provider packages swapped for native TanStack AI adapters. The bridge lets you do that last step later, one provider at a time:
 
 | Vercel AI SDK | TanStack AI with the bridge |
 |---|---|
@@ -209,7 +234,7 @@ TanStack's own [migration guide](https://tanstack.com/ai/latest/docs/migration/m
 | `useChat` from `@ai-sdk/react` | `useChat` from `@tanstack/ai-react` |
 | `result.toUIMessageStreamResponse()` | `toServerSentEventsResponse(stream)` |
 
-A practical order: move the server route and client first with the bridge, ship, then replace a bridged provider with a native TanStack adapter later if one exists and you need its typed per-model options.
+Order: move the server route and client first with the bridge, ship, then replace each bridged provider with its native TanStack AI adapter (see the table at the top), and remove this package when none is left.
 
 ## What is tested
 
@@ -233,13 +258,13 @@ Everything below ran on 2026-10-23 with `@tanstack/ai` 1.0.0. **No live provider
 
 ## Limits
 
-- **Provider-executed tools** (an AI SDK provider's own web search, code execution and the like) are not forwarded; function tools are.
-- **Reasoning signatures** are not sent back, so providers that need signed thinking blocks in later turns (Anthropic extended thinking with tools) receive the reasoning as plain text or drop it.
-- `chat({ wrapFetch })` is not applied; pass a custom `fetch` to the provider factory (`createDeepSeek({ fetch })`).
+The [What you lose versus a native adapter](#what-you-lose-versus-a-native-adapter) list at the top, plus:
+
+
 - Provider file handles (`{ type: 'file' }` sources) are rejected; send images and documents as data or URLs.
 - Transcription `language`, `prompt` and `responseFormat` are not sent; see the options table.
 - Embeddings cannot be aborted (TanStack AI's `embed()` has no signal).
-- **TanStack AI internals:** like TanStack's own adapters, the bridge imports helpers (`transformMessagesForReplay`, `tanstackMetadata`, `toRunErrorPayload`) from `@tanstack/ai/adapter-internals`, the subpath TanStack's [community adapter guide](https://tanstack.com/ai/latest/docs/community-adapters/guide) points adapters to. It is not covered by the same stability promise as the main entry. Tested with `@tanstack/ai` 1.0.0; the peer range is `^1.0.0`. If a 1.x release breaks it, please open an issue.
+- **TanStack AI internals:** the bridge imports `transformMessagesForReplay`, `tanstackMetadata` and `toRunErrorPayload` from `@tanstack/ai/adapter-internals`. That subpath has no stability promise (TanStack AI's maintainers say so), so the peer range is `>=1.0.0 <1.1.0`, the versions tested. Newer TanStack AI releases are flagged at install time until a tested release widens the range.
 - AI SDK reranking models report no token usage, so `rerank()` usage is zero.
 - Video, audio generation and realtime models are not bridged yet.
 

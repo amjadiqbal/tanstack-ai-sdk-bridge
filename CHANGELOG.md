@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-23
+
+### Changed
+
+- Positioned as a migration stepping stone, following TanStack AI maintainers' feedback ([TanStack/ai#1884](https://github.com/TanStack/ai/pull/1884)): the README now starts with TanStack AI's migration guide, a table of the native adapter for each tested provider, a third-party notice, and the list of what the bridge loses versus a native adapter.
+- **Peer range narrowed to `@tanstack/ai >=1.0.0 <1.1.0`** (the versions tested), because the bridge imports `@tanstack/ai/adapter-internals`, which has no stability promise. Newer TanStack AI versions are flagged at install time until a tested release widens the range.
+- `aiSdkSpeech`: Ogg audio is reported as `opus` only when the stream is Opus, otherwise as `ogg`; an `audio/ogg` header maps to `ogg`, and the content type for `opus` and `ogg` is `audio/ogg`.
+
+### Documentation
+
+- The `application/octet-stream` fallback for speech `contentType` is documented.
+
 ## [0.1.1] - 2026-10-23
 
 ### Fixed

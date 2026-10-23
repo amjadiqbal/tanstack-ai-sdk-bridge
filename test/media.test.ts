@@ -180,6 +180,34 @@ describe('aiSdkSpeech: reported format', () => {
     expect(mp3.format).toBe('mp3');
   });
 
+  it('tells Ogg Opus from other Ogg', async () => {
+    const page = (packet: string) => {
+      const header = new Uint8Array(28);
+      header.set([...'OggS'].map((c) => c.charCodeAt(0)));
+      header[26] = 1;
+      return new Uint8Array([...header, ...[...packet].map((c) => c.charCodeAt(0))]);
+    };
+    const opus = await generateSpeech({ threadId: 't', adapter: aiSdkSpeech(speak(page('OpusHead'))), text: 'hi' });
+    expect(opus.format).toBe('opus');
+    expect(opus.contentType).toBe('audio/ogg');
+    const vorbis = await generateSpeech({
+      threadId: 't',
+      adapter: aiSdkSpeech(speak(page('\u0001vorbis'))),
+      text: 'hi',
+    });
+    expect(vorbis.format).toBe('ogg');
+    expect(vorbis.contentType).toBe('audio/ogg');
+  });
+
+  it('labels an audio/ogg header as ogg', async () => {
+    const result = await generateSpeech({
+      threadId: 't',
+      adapter: aiSdkSpeech(speak(new Uint8Array([1]), { 'content-type': 'audio/ogg' })),
+      text: 'hi',
+    });
+    expect(result.format).toBe('ogg');
+  });
+
   it('says unknown instead of guessing mp3', async () => {
     const result = await generateSpeech({
       threadId: 't',
